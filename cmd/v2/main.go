@@ -2,35 +2,17 @@ package main
 
 import (
 	"encoding/csv"
-	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/pdropaiva/poc-diff-csv/cmd/util"
+	"github.com/pdropaiva/poc-diff-csv/domain"
 )
-
-// ExportURL ...
-type ExportURL struct {
-	URL string
-}
-
-// UserAudience ...
-type UserAudience struct {
-	email    string
-	birthday string
-	telefone string
-}
-
-// ExportDiff ...
-type ExportDiff struct {
-	isNew bool
-	isOld bool
-	data  UserAudience
-}
 
 func main() {
 	appKey := os.Getenv("APP_KEY")
-	m := make(map[string]*ExportDiff)
+	m := make(map[string]*domain.ExportDiff)
 
 	diff, err := handleDiff(appKey, os.Getenv("OLD_EXPORT_ID"), true, false, m)
 	if err != nil {
@@ -42,32 +24,13 @@ func main() {
 		panic(err)
 	}
 
-	add, remove := splitDiff(diff)
-	fmt.Println("************* Count add *************")
-	fmt.Println(len(add))
-	fmt.Println("************* Array add *************")
-	fmt.Println(add)
-	fmt.Println("************ Count remove ***********")
-	fmt.Println(len(remove))
-	fmt.Println("************ Array remove ***********")
-	fmt.Println(remove)
+	add, remove := util.SplitDiff(diff)
+	util.PrintDiff(add, remove)
 }
 
-func splitDiff(diff map[string]*ExportDiff) (add []interface{}, remove []interface{}) {
-	for _, u := range diff {
-		if !u.isOld && u.isNew {
-			add = append(add, u.data)
-		}
-
-		if u.isOld && !u.isNew {
-			remove = append(remove, u.data)
-		}
-	}
-	return add, remove
-}
-
-func handleDiff(appKey, id string, isOld, isNew bool, m map[string]*ExportDiff) (map[string]*ExportDiff, error) {
-	url, err := getExportURL(appKey, id)
+func handleDiff(appKey, id string, isOld, isNew bool, m map[string]*domain.ExportDiff) (map[string]*domain.ExportDiff, error) {
+	e := domain.Export{}
+	url, err := e.AssignedURL(appKey, id)
 	if err != nil {
 		return nil, err
 	}
@@ -79,32 +42,7 @@ func handleDiff(appKey, id string, isOld, isNew bool, m map[string]*ExportDiff) 
 	return diff, nil
 }
 
-func getExportURL(appKey, id string) (string, error) {
-	client := &http.Client{}
-	url := fmt.Sprintf(
-		"%v/%v/url?appKey=%v",
-		os.Getenv("EXPORT_URL"),
-		id,
-		appKey,
-	)
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	e := ExportURL{}
-	decoder := json.NewDecoder(resp.Body)
-
-	if err := decoder.Decode(&e); err != nil {
-		return "", err
-	}
-
-	return e.URL, err
-}
-
-func proccessRemoteCsv(url string, isOld, isNew bool, m map[string]*ExportDiff) (map[string]*ExportDiff, error) {
+func proccessRemoteCsv(url string, isOld, isNew bool, m map[string]*domain.ExportDiff) (map[string]*domain.ExportDiff, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -118,7 +56,7 @@ func proccessRemoteCsv(url string, isOld, isNew bool, m map[string]*ExportDiff) 
 	return diff, err
 }
 
-func generateDiff(arq io.ReadCloser, isOld, isNew bool, m map[string]*ExportDiff) (map[string]*ExportDiff, error) {
+func generateDiff(arq io.ReadCloser, isOld, isNew bool, m map[string]*domain.ExportDiff) (map[string]*domain.ExportDiff, error) {
 	defer arq.Close()
 	r := csv.NewReader(arq)
 	for {
@@ -131,22 +69,22 @@ func generateDiff(arq io.ReadCloser, isOld, isNew bool, m map[string]*ExportDiff
 		}
 
 		if m[user[0]] != nil {
-			m[user[0]].isNew = isNew
-			m[user[0]].data = UserAudience{
-				email:    user[2],
-				birthday: user[5],
-				telefone: user[len(user)-1],
+			m[user[0]].IsNew = isNew
+			m[user[0]].Data = domain.UserAudience{
+				Email:    user[2],
+				Birthday: user[5],
+				Telefone: user[len(user)-1],
 			}
 			continue
 		}
 
-		m[user[0]] = &ExportDiff{
-			isOld: isOld,
-			isNew: isNew,
-			data: UserAudience{
-				email:    user[2],
-				birthday: user[5],
-				telefone: user[len(user)-1],
+		m[user[0]] = &domain.ExportDiff{
+			IsOld: isOld,
+			IsNew: isNew,
+			Data: domain.UserAudience{
+				Email:    user[2],
+				Birthday: user[5],
+				Telefone: user[len(user)-1],
 			},
 		}
 	}
