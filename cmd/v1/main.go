@@ -56,66 +56,6 @@ func main() {
 	fmt.Println(remove)
 }
 
-func splitDiff(diff map[string]*ExportDiff) (add []interface{}, remove []interface{}) {
-	for _, u := range diff {
-		if !u.isOld && u.isNew {
-			add = append(add, u.data)
-		}
-
-		if u.isOld && !u.isNew {
-			remove = append(remove, u.data)
-		}
-	}
-	return add, remove
-}
-
-func generateDiff(old, new string) (map[string]*ExportDiff, error) {
-	m := make(map[string]*ExportDiff)
-	oldFile, err := os.Open(old)
-	if err != nil {
-		return nil, err
-	}
-
-	r := csv.NewReader(oldFile)
-	for {
-		user, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		m[user[0]] = &ExportDiff{isOld: true, isNew: false, data: UserAudience{email: user[2], birthday: user[5], telefone: user[len(user)-1]}}
-	}
-
-	newFile, err := os.Open(new)
-	if err != nil {
-		return nil, err
-	}
-
-	r = csv.NewReader(newFile)
-	for {
-		user, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if m[user[0]] != nil {
-			m[user[0]].isNew = true
-			m[user[0]].data = UserAudience{email: user[2], birthday: user[5], telefone: user[len(user)-1]}
-			continue
-		}
-
-		m[user[0]] = &ExportDiff{isOld: false, isNew: true, data: UserAudience{email: user[2], birthday: user[5], telefone: user[len(user)-1]}}
-	}
-
-	return m, nil
-}
-
 func downloadExport(appKey, id string) (string, error) {
 	url, err := getExportURL(appKey, id)
 	if err != nil {
@@ -170,4 +110,84 @@ func downloadFile(filepath string, url string) (string, error) {
 
 	_, err = io.Copy(out, resp.Body)
 	return filepath, err
+}
+
+func splitDiff(diff map[string]*ExportDiff) (add []interface{}, remove []interface{}) {
+	for _, u := range diff {
+		if !u.isOld && u.isNew {
+			add = append(add, u.data)
+		}
+
+		if u.isOld && !u.isNew {
+			remove = append(remove, u.data)
+		}
+	}
+	return add, remove
+}
+
+func generateDiff(old, new string) (map[string]*ExportDiff, error) {
+	m := make(map[string]*ExportDiff)
+	oldFile, err := os.Open(old)
+	if err != nil {
+		return nil, err
+	}
+
+	r := csv.NewReader(oldFile)
+	for {
+		user, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		m[user[0]] = &ExportDiff{
+			isOld: true,
+			isNew: false,
+			data: UserAudience{
+				email:    user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			},
+		}
+	}
+
+	newFile, err := os.Open(new)
+	if err != nil {
+		return nil, err
+	}
+
+	r = csv.NewReader(newFile)
+	for {
+		user, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if m[user[0]] != nil {
+			m[user[0]].isNew = true
+			m[user[0]].data = UserAudience{
+				email:    user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			}
+			continue
+		}
+
+		m[user[0]] = &ExportDiff{
+			isOld: false,
+			isNew: true,
+			data: UserAudience{
+				email:    user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			},
+		}
+	}
+
+	return m, nil
 }
