@@ -6,7 +6,7 @@ import (
 	"github.com/pdropaiva/poc-diff-csv/domain"
 )
 
-// SplitDiff ...
+// SplitDiff will split diff map on two arrays one with added users and other with removed users
 func SplitDiff(diff map[string]*domain.ExportDiff) (add []domain.UserAudience, remove []domain.UserAudience) {
 	for _, u := range diff {
 		if !u.IsOld && u.IsNew {
@@ -20,7 +20,7 @@ func SplitDiff(diff map[string]*domain.ExportDiff) (add []domain.UserAudience, r
 	return add, remove
 }
 
-// PrintDiff ...
+// PrintDiff will print count and content of add and remove arrays
 func PrintDiff(add, remove []domain.UserAudience) {
 	fmt.Println("************* Count add *************")
 	fmt.Println(len(add))

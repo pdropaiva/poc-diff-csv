@@ -12,7 +12,7 @@ type Export struct {
 	URL string `json:"url"`
 }
 
-// AssignedURL ...
+// AssignedURL will return assigned url to one csv
 func (e *Export) AssignedURL(appKey, id string) (string, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf(
