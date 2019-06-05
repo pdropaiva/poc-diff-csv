@@ -30,21 +30,18 @@ type ExportDiff struct {
 
 func main() {
 	appKey := os.Getenv("APP_KEY")
+	m := make(map[string]*ExportDiff)
 
-	oldExpo, err := downloadExport(appKey, os.Getenv("OLD_EXPORT_ID"))
+	diff, err := handleDiff(appKey, os.Getenv("OLD_EXPORT_ID"), true, false, m)
 	if err != nil {
 		panic(err)
 	}
 
-	newExpo, err := downloadExport(appKey, os.Getenv("NEW_EXPORT_ID"))
+	diff, err = handleDiff(appKey, os.Getenv("NEW_EXPORT_ID"), false, true, diff)
 	if err != nil {
 		panic(err)
 	}
 
-	diff, err := generateDiff(oldExpo, newExpo)
-	if err != nil {
-		panic(err)
-	}
 	add, remove := splitDiff(diff)
 	fmt.Println("************* Count add *************")
 	fmt.Println(len(add))
@@ -69,83 +66,17 @@ func splitDiff(diff map[string]*ExportDiff) (add []interface{}, remove []interfa
 	return add, remove
 }
 
-func generateDiff(old, new string) (map[string]*ExportDiff, error) {
-	m := make(map[string]*ExportDiff)
-	oldFile, err := os.Open(old)
-	if err != nil {
-		return nil, err
-	}
-
-	r := csv.NewReader(oldFile)
-	for {
-		user, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		m[user[0]] = &ExportDiff{
-			isOld: true,
-			isNew: false,
-			data: UserAudience{email: user[2],
-				birthday: user[5],
-				telefone: user[len(user)-1],
-			},
-		}
-	}
-
-	newFile, err := os.Open(new)
-	if err != nil {
-		return nil, err
-	}
-
-	r = csv.NewReader(newFile)
-	for {
-		user, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if m[user[0]] != nil {
-			m[user[0]].isNew = true
-			m[user[0]].data = UserAudience{
-				email:    user[2],
-				birthday: user[5],
-				telefone: user[len(user)-1],
-			}
-			continue
-		}
-
-		m[user[0]] = &ExportDiff{
-			isOld: false,
-			isNew: true,
-			data: UserAudience{
-				email:    user[2],
-				birthday: user[5],
-				telefone: user[len(user)-1],
-			},
-		}
-	}
-
-	return m, nil
-}
-
-func downloadExport(appKey, id string) (string, error) {
+func handleDiff(appKey, id string, isOld, isNew bool, m map[string]*ExportDiff) (map[string]*ExportDiff, error) {
 	url, err := getExportURL(appKey, id)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	filepath, err := downloadFile(fmt.Sprintf("%v.csv", id), url)
+	diff, err := proccessRemoteCsv(url, isOld, isNew, m)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return filepath, nil
+	return diff, nil
 }
 
 func getExportURL(appKey, id string) (string, error) {
@@ -173,20 +104,52 @@ func getExportURL(appKey, id string) (string, error) {
 	return e.URL, err
 }
 
-func downloadFile(filepath string, url string) (string, error) {
+func proccessRemoteCsv(url string, isOld, isNew bool, m map[string]*ExportDiff) (map[string]*ExportDiff, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer resp.Body.Close()
 
-	filepath = fmt.Sprintf("./csv/%v", filepath)
-	out, err := os.Create(filepath)
+	diff, err := generateDiff(resp.Body, isOld, isNew, m)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
-	return filepath, err
+	return diff, err
+}
+
+func generateDiff(arq io.ReadCloser, isOld, isNew bool, m map[string]*ExportDiff) (map[string]*ExportDiff, error) {
+	defer arq.Close()
+	r := csv.NewReader(arq)
+	for {
+		user, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if m[user[0]] != nil {
+			m[user[0]].isNew = isNew
+			m[user[0]].data = UserAudience{
+				email:    user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			}
+			continue
+		}
+
+		m[user[0]] = &ExportDiff{
+			isOld: isOld,
+			isNew: isNew,
+			data: UserAudience{
+				email:    user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			},
+		}
+	}
+
+	return m, nil
 }
