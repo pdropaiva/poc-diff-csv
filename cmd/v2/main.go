@@ -46,9 +46,13 @@ func main() {
 		panic(err)
 	}
 	add, remove := splitDiff(diff)
+	fmt.Println("************* Count add *************")
 	fmt.Println(len(add))
+	fmt.Println("************* Array add *************")
 	fmt.Println(add)
+	fmt.Println("************ Count remove ***********")
 	fmt.Println(len(remove))
+	fmt.Println("************ Array remove ***********")
 	fmt.Println(remove)
 }
 
@@ -82,7 +86,14 @@ func generateDiff(old, new string) (map[string]*ExportDiff, error) {
 			return nil, err
 		}
 
-		m[user[0]] = &ExportDiff{isOld: true, isNew: false, data: UserAudience{email: user[2], birthday: user[5], telefone: user[len(user)-1]}}
+		m[user[0]] = &ExportDiff{
+			isOld: true,
+			isNew: false,
+			data: UserAudience{email: user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			},
+		}
 	}
 
 	newFile, err := os.Open(new)
@@ -102,11 +113,23 @@ func generateDiff(old, new string) (map[string]*ExportDiff, error) {
 
 		if m[user[0]] != nil {
 			m[user[0]].isNew = true
-			m[user[0]].data = UserAudience{email: user[2], birthday: user[5], telefone: user[len(user)-1]}
+			m[user[0]].data = UserAudience{
+				email:    user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			}
 			continue
 		}
 
-		m[user[0]] = &ExportDiff{isOld: false, isNew: true, data: UserAudience{email: user[2], birthday: user[5], telefone: user[len(user)-1]}}
+		m[user[0]] = &ExportDiff{
+			isOld: false,
+			isNew: true,
+			data: UserAudience{
+				email:    user[2],
+				birthday: user[5],
+				telefone: user[len(user)-1],
+			},
+		}
 	}
 
 	return m, nil
