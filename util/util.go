@@ -2,6 +2,8 @@ package util
 
 import (
 	"fmt"
+	"runtime"
+	"time"
 
 	"github.com/pdropaiva/poc-diff-csv/domain"
 )
@@ -30,4 +32,33 @@ func PrintDiff(add, remove []domain.UserAudience) {
 	fmt.Println(len(remove))
 	fmt.Println("************ Array remove ***********")
 	fmt.Println(remove)
+}
+
+// Benchmark  ...
+func Benchmark(ctxName string, callback domain.Fn) {
+	start := time.Now()
+
+	callback()
+
+	fmt.Printf("\n********************************\n")
+	fmt.Printf("%s Benchmark Stats\n", ctxName)
+	fmt.Printf("********************************\n")
+
+	fmt.Printf("Tempo de execução:\n\t%v\n\n", time.Since(start))
+	fmt.Printf("Consumo de memória:\n")
+	printMemUsage()
+}
+
+func printMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("\tAlloc = %v MiB\n", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB\n", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB\n", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }

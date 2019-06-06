@@ -2,39 +2,50 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 
-	"github.com/pdropaiva/poc-diff-csv/cmd/util"
 	"github.com/pdropaiva/poc-diff-csv/domain"
+	"github.com/pdropaiva/poc-diff-csv/util"
 )
 
 func main() {
+	var (
+		add    []domain.UserAudience
+		remove []domain.UserAudience
+	)
 	appKey := os.Getenv("APP_KEY")
 	m := make(map[string]*domain.ExportDiff)
 
-	diff, err := handleDiff(appKey, os.Getenv("OLD_EXPORT_ID"), true, false, m)
-	if err != nil {
-		panic(err)
-	}
+	util.Benchmark("v2", func() {
+		diff, err := handleDiff(appKey, os.Getenv("OLD_EXPORT_ID"), true, false, m)
+		if err != nil {
+			panic(err)
+		}
 
-	diff, err = handleDiff(appKey, os.Getenv("NEW_EXPORT_ID"), false, true, diff)
-	if err != nil {
-		panic(err)
-	}
+		diff, err = handleDiff(appKey, os.Getenv("NEW_EXPORT_ID"), false, true, diff)
+		if err != nil {
+			panic(err)
+		}
 
-	add, remove := util.SplitDiff(diff)
+		add, remove = util.SplitDiff(diff)
+	})
+
 	util.PrintDiff(add, remove)
 }
 
 func handleDiff(appKey, id string, isOld, isNew bool, m map[string]*domain.ExportDiff) (map[string]*domain.ExportDiff, error) {
 	e := domain.Export{}
+	var diff map[string]*domain.ExportDiff
 	url, err := e.AssignedURL(appKey, id)
 	if err != nil {
 		return nil, err
 	}
-	diff, err := proccessRemoteCsv(url, isOld, isNew, m)
+	util.Benchmark(fmt.Sprintf("proccessRemoteCsv %s", url), func() {
+		diff, err = proccessRemoteCsv(url, isOld, isNew, m)
+	})
 	if err != nil {
 		return nil, err
 	}

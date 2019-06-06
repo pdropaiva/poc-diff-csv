@@ -7,39 +7,52 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/pdropaiva/poc-diff-csv/cmd/util"
 	"github.com/pdropaiva/poc-diff-csv/domain"
+	"github.com/pdropaiva/poc-diff-csv/util"
 )
 
 func main() {
+	var (
+		add    []domain.UserAudience
+		remove []domain.UserAudience
+		diff   map[string]*domain.ExportDiff
+	)
 	appKey := os.Getenv("APP_KEY")
 
-	oldExpo, err := downloadExport(appKey, os.Getenv("OLD_EXPORT_ID"))
-	if err != nil {
-		panic(err)
-	}
+	util.Benchmark("v1", func() {
+		oldExpo, err := downloadExport(appKey, os.Getenv("OLD_EXPORT_ID"))
+		if err != nil {
+			panic(err)
+		}
 
-	newExpo, err := downloadExport(appKey, os.Getenv("NEW_EXPORT_ID"))
-	if err != nil {
-		panic(err)
-	}
+		newExpo, err := downloadExport(appKey, os.Getenv("NEW_EXPORT_ID"))
+		if err != nil {
+			panic(err)
+		}
 
-	diff, err := generateDiff(oldExpo, newExpo)
-	if err != nil {
-		panic(err)
-	}
+		util.Benchmark("generateDiff", func() {
+			diff, err = generateDiff(oldExpo, newExpo)
+		})
+		if err != nil {
+			panic(err)
+		}
 
-	add, remove := util.SplitDiff(diff)
+		add, remove = util.SplitDiff(diff)
+	})
+
 	util.PrintDiff(add, remove)
 }
 
 func downloadExport(appKey, id string) (string, error) {
 	e := domain.Export{}
+	var filepath string
 	url, err := e.AssignedURL(appKey, id)
 	if err != nil {
 		return "", err
 	}
-	filepath, err := downloadFile(fmt.Sprintf("%v.csv", id), url)
+	util.Benchmark(fmt.Sprintf("Download of %v.csv", id), func() {
+		filepath, err = downloadFile(fmt.Sprintf("%v.csv", id), url)
+	})
 	if err != nil {
 		return "", err
 	}
@@ -55,6 +68,7 @@ func downloadFile(filepath string, url string) (string, error) {
 	defer resp.Body.Close()
 
 	filepath = fmt.Sprintf("./csv/%v", filepath)
+	os.Remove(filepath)
 	out, err := os.Create(filepath)
 	if err != nil {
 		return "", err

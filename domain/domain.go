@@ -50,3 +50,5 @@ type ExportDiff struct {
 	IsOld bool
 	Data  UserAudience
 }
+
+type Fn func()
